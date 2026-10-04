@@ -1,4 +1,4 @@
-const CACHE = 'habal-fare-v2';
+const CACHE = 'habal-fare-v3';
 const ASSETS = [
   './',
   './index.html',
