@@ -21,6 +21,27 @@
 :where(code, pre, kbd, samp) {
   font-family: "Optimistic Mono", ui-monospace, monospace;
 }
+</style><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
 </style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -125,9 +146,10 @@ details p{margin:10px 0 0;font-family:"DM Mono",monospace;font-size:13px;color:v
 .tg-help{font-size:11px;color:var(--mute);line-height:1.4}
 .tg-actions{display:flex;gap:8px}
 .tg-actions .btn{flex:1;height:42px;font-size:13px}
-#gasCard[hidden], #tgBox[hidden]{display:none !important}
+#tgBox[hidden]{display:none !important}
 .credit-hidden{display:none}
-.credit-permanent{font-size:10.5px;text-align:center;color:var(--mute);opacity:0.55;margin-top:14px;letter-spacing:0.02em}
+.credit-hidden[hidden]{display:none !important}
+.credit-permanent{font-size:10.5px;text-align:center;color:var(--mute);opacity:0.55;margin-top:14px;letter-spacing:0.02em;font-weight:400}
 .credit-permanent b{color:var(--mute);font-weight:600}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -279,7 +301,7 @@ var MIN=0.5,MAX=100;
 var s={city:"manila",km:3.5,surge:1,night:false,rain:false,booking:true,theme:null,hist:[],kmPerL:50,pricePerL:65,tgToken:"",tgChat:""};
 var h=new Date().getHours(); if(h>=22||h<5) s.night=true;
 
-function load(){try{var d=JSON.parse(localStorage.getItem("angkas-fare")||"null");if(d){
+function load(){try{var d=JSON.parse(localStorage.getItem("habal-fare")||"null");if(d){
   if(d.theme)s.theme=d.theme;
   if(typeof d.kmPerL==="number"&&d.kmPerL>0)s.kmPerL=d.kmPerL;
   if(typeof d.pricePerL==="number"&&d.pricePerL>=0)s.pricePerL=d.pricePerL;
@@ -288,7 +310,7 @@ function load(){try{var d=JSON.parse(localStorage.getItem("angkas-fare")||"null"
   if(typeof d.tgToken==="string")s.tgToken=d.tgToken;
   if(typeof d.tgChat==="string")s.tgChat=d.tgChat;
 }}catch(e){}}
-function persist(){try{localStorage.setItem("angkas-fare",JSON.stringify({theme:s.theme,kmPerL:s.kmPerL,pricePerL:s.pricePerL,hist:s.hist,tgToken:s.tgToken,tgChat:s.tgChat}))}catch(e){}}
+function persist(){try{localStorage.setItem("habal-fare",JSON.stringify({theme:s.theme,kmPerL:s.kmPerL,pricePerL:s.pricePerL,hist:s.hist,tgToken:s.tgToken,tgChat:s.tgChat}))}catch(e){}}
 var $=function(id){return document.getElementById(id)};
 var peso=function(n){return "₱"+n.toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
 
@@ -402,71 +424,13 @@ function buildDailyTelegramMsg(){
     var when=new Date(x.t).toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"});
     linesMsg.push((i+1)+". "+peso(x.total)+"  - "+when);
   });
-  return linesMsg.join("
-");
+  return linesMsg.join("\n");
 }
 
 function buildTripTelegramMsg(){
   var c=calc();
   var d=new Date();
-  var timeStr=d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"});
-  return peso(c.total)+"  - "+timeStr;
-}
-
-async function sendToTelegram(text){
-  if(!s.tgToken||!s.tgChat){
-    toast("Lagay mo muna Bot Token at Chat ID");
-    $("tgBox").scrollIntoView({behavior:"smooth"});
-    $("tgStatus").textContent="⚠️ Kulang pa token/chat id";
-    $("tgStatus").style.color="#C0392B";
-    return;
-  }
-  var btn=$("sendTg");
-  try{
-    btn.disabled=true;btn.textContent="⏳ Sending...";
-    $("tgStatus").textContent="Sending to Telegram...";$("tgStatus").style.color="";
-    var url="https://api.telegram.org/bot"+s.tgToken.trim()+"/sendMessage";
-    var res=await fetch(url,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({chat_id:s.tgChat.trim(),text:text,parse_mode:"Markdown"})
-    });
-    var data=await res.json();
-    if(!data.ok)throw new Error(data.description||"Telegram error");
-    toast("✅ Na-send sa Telegram!");
-    $("tgStatus").textContent="✅ Sent! Check Telegram";
-    $("tgStatus").style.color="#1a7a4c";
-  }catch(e){
-    toast("❌ Failed: "+e.message);
-    $("tgStatus").textContent="❌ "+e.message;
-    $("tgStatus").style.color="#C0392B";
-  }finally{
-    btn.disabled=false;btn.textContent="📤 Send daily to Telegram";
-  }
-}
-
-function renderEarn(){
-  var el=$("earn");
-  var st=getDailyStats();
-  if(!st){el.hidden=true;return}
-  el.hidden=false;
-  $("earn-trips").textContent=st.count;
-  $("earn-km").textContent=st.km.toFixed(1)+" km";
-  $("earn-liters").textContent=st.liters.toFixed(3)+" L";
-  $("earn-gross").textContent=peso(st.gross);
-  $("earn-gas").textContent="−"+peso(st.gas);
-  $("earn-net").textContent=peso(st.net);
-}
-
-function renderHist(){
-  var el=$("hist");$("clear").hidden=!s.hist.length;
-  renderEarn();
-  if(!s.hist.length){el.innerHTML='<p class="empty">Nothing saved yet. Tap “Save / Book” to keep a trip and track daily kinita.</p>';return}
-  el.innerHTML=s.hist.map(function(x,i){
-    var when=new Date(x.t);
-    var dayLabel=sameDay(x.t)?"Today":when.toLocaleDateString("en-PH",{month:"short",day:"numeric"});
-    var gasStr=(typeof x.gasCost==="number")?" · gas "+peso(x.gasCost):"";
-    return '<button data-i="'+i+'"><span><b>'+peso(x.total)+'</b><br><small>'+x.km+' km'+gasStr+' · '+dayLabel+' '+when.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})+'</small></span><small>Reuse</small></button>'}).join("");
+  return peso(c.total)+"  - "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"});
 }
 function applyTheme(){var r=document.documentElement;if(s.theme)r.setAttribute("data-theme",s.theme);else r.removeAttribute("data-theme")}
 
@@ -478,7 +442,17 @@ $("ppl").value=s.pricePerL;
 $("tgToken").value=s.tgToken||"";
 $("tgChat").value=s.tgChat||"";
 
-document.querySelectorAll("[data-fee]").forEach(function(b){b.onclick=function(){s[b.dataset.fee]=!s[b.dataset.fee];render()}});
+document.querySelectorAll("[data-fee]").forEach(function(b){
+  b.addEventListener("click", function(e){
+    e.preventDefault();
+    var k=this.getAttribute("data-fee");
+    if(k){
+      s[k]=!s[k];
+      render();
+      toast((s[k]?"✅ ":"❌ ")+(k==="night"?"Night charge":k==="rain"?"Rainy":"Booking fee")+(s[k]?" ON":" OFF"));
+    }
+  });
+});
 document.querySelectorAll("[data-surge]").forEach(function(b){b.onclick=function(){s.surge=+b.dataset.surge;render()}});
 document.querySelectorAll("[data-q]").forEach(function(b){b.onclick=function(){setKm(+b.dataset.q)}});
 $("minus").onclick=function(){setKm(s.km-0.5)};
@@ -691,49 +665,62 @@ function suggest(id){
   ul.addEventListener("pointerdown",function(e){var li=e.target.closest("li");if(!li)return;e.preventDefault();choose(+li.dataset.i)});
 }
 suggest("from");suggest("to");
-// --- HIDDEN FEATURES LOGIC ---
+// --- HIDDEN FEATURES LOGIC - FIXED 3x TAP, GAS ALWAYS VISIBLE ---
 var secretCount=0, secretTimer=null;
 function unlockHidden(){
-  var gas=$("gasCard"), tg=$("tgBox");
-  if(!gas) return;
-  var isHidden = gas.hasAttribute("hidden");
-  if(isHidden){
-    gas.removeAttribute("hidden");
-    if(tg) tg.removeAttribute("hidden");
-    toast("🔓 Settings unlocked");
+  var tg=$("tgBox");
+  if(!tg) return;
+  if(tg.hasAttribute("hidden")){
+    tg.removeAttribute("hidden");
+    setTimeout(function(){ tg.scrollIntoView({behavior:"smooth", block:"center"}); }, 100);
+    toast("🔓 Telegram unlocked - 3x tap to lock again");
   } else {
-    // keep gas visible always per user request, only toggle telegram
-    if(tg) {
-      if(tg.hasAttribute("hidden")){tg.removeAttribute("hidden"); toast("🔓 Telegram unlocked");}
-      else {tg.setAttribute("hidden",""); toast("🔒 Telegram locked");}
-    }
+    tg.setAttribute("hidden","");
+    toast("🔒 Telegram locked");
+  }
+}
+function handleSecretTap(e){
+  if(e) e.stopPropagation();
+  secretCount++;
+  clearTimeout(secretTimer);
+  secretTimer=setTimeout(function(){secretCount=0},2500);
+  if(secretCount>=3){
+    secretCount=0;
+    unlockHidden();
+  } else if(secretCount>0){
+    toast("Tap "+(3-secretCount)+" more to unlock Telegram");
   }
 }
 var titleEl=document.querySelector("h1");
 if(titleEl){
   titleEl.style.cursor="pointer";
-  titleEl.addEventListener("click",function(){
-    secretCount++;
-    clearTimeout(secretTimer);
-    secretTimer=setTimeout(function(){secretCount=0},2000);
-    if(secretCount>=5){secretCount=0;unlockHidden();}
-  });
+  titleEl.style.userSelect="none";
+  titleEl.title="Tap 3x to unlock Telegram";
+  titleEl.addEventListener("click", handleSecretTap);
 }
-
-
-// long press on fine text
+var creditEl=document.querySelector(".credit-permanent");
+if(creditEl){
+  creditEl.style.cursor="pointer";
+  creditEl.style.userSelect="none";
+  creditEl.addEventListener("click", handleSecretTap);
+}
 var fine=document.querySelector(".fine");
 if(fine){
+  fine.style.cursor="pointer";
+  fine.style.userSelect="none";
+  fine.addEventListener("click", handleSecretTap);
   var pressTimer;
-  fine.addEventListener("touchstart",function(){pressTimer=setTimeout(unlockHidden,1200)});
-  fine.addEventListener("touchend",function(){clearTimeout(pressTimer)});
-  fine.addEventListener("mousedown",function(){pressTimer=setTimeout(unlockHidden,1200)});
-  fine.addEventListener("mouseup",function(){clearTimeout(pressTimer)});
+  fine.addEventListener("touchstart",function(){pressTimer=setTimeout(unlockHidden,1000);});
+  fine.addEventListener("touchend",function(){clearTimeout(pressTimer);});
+  fine.addEventListener("mousedown",function(){pressTimer=setTimeout(unlockHidden,1000);});
+  fine.addEventListener("mouseup",function(){clearTimeout(pressTimer);});
 }
+
+
 
 if("serviceWorker" in navigator)window.addEventListener("load",function(){navigator.serviceWorker.register("./sw.js").catch(function(){})});
 render();renderHist();
 })();
 </script>
-<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script><script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
 </html>
