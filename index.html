@@ -432,6 +432,61 @@ function buildTripTelegramMsg(){
   var d=new Date();
   return peso(c.total)+"  - "+d.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"});
 }
+async function sendToTelegram(text){
+  if(!s.tgToken||!s.tgChat){
+    toast("Lagay mo muna Bot Token at Chat ID");
+    $("tgBox").scrollIntoView({behavior:"smooth"});
+    $("tgStatus").textContent="⚠️ Kulang pa token/chat id";
+    $("tgStatus").style.color="#C0392B";
+    return;
+  }
+  var btn=$("sendTg");
+  try{
+    btn.disabled=true;btn.textContent="⏳ Sending...";
+    $("tgStatus").textContent="Sending to Telegram...";$("tgStatus").style.color="";
+    var url="https://api.telegram.org/bot"+s.tgToken.trim()+"/sendMessage";
+    var res=await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({chat_id:s.tgChat.trim(),text:text,parse_mode:"Markdown"})
+    });
+    var data=await res.json();
+    if(!data.ok)throw new Error(data.description||"Telegram error");
+    toast("✅ Na-send sa Telegram!");
+    $("tgStatus").textContent="✅ Sent! Check Telegram";
+    $("tgStatus").style.color="#1a7a4c";
+  }catch(e){
+    toast("❌ Failed: "+e.message);
+    $("tgStatus").textContent="❌ "+e.message;
+    $("tgStatus").style.color="#C0392B";
+  }finally{
+    btn.disabled=false;btn.textContent="📤 Send daily to Telegram";
+  }
+}
+
+function renderEarn(){
+  var el=$("earn");
+  var st=getDailyStats();
+  if(!st){el.hidden=true;return}
+  el.hidden=false;
+  $("earn-trips").textContent=st.count;
+  $("earn-km").textContent=st.km.toFixed(1)+" km";
+  $("earn-liters").textContent=st.liters.toFixed(3)+" L";
+  $("earn-gross").textContent=peso(st.gross);
+  $("earn-gas").textContent="−"+peso(st.gas);
+  $("earn-net").textContent=peso(st.net);
+}
+
+function renderHist(){
+  var el=$("hist");$("clear").hidden=!s.hist.length;
+  renderEarn();
+  if(!s.hist.length){el.innerHTML='<p class="empty">Nothing saved yet. Tap “Save / Book” to keep a trip and track daily kinita.</p>';return}
+  el.innerHTML=s.hist.map(function(x,i){
+    var when=new Date(x.t);
+    var dayLabel=sameDay(x.t)?"Today":when.toLocaleDateString("en-PH",{month:"short",day:"numeric"});
+    var gasStr=(typeof x.gasCost==="number")?" · gas "+peso(x.gasCost):"";
+    return '<button data-i="'+i+'"><span><b>'+peso(x.total)+'</b><br><small>'+x.km+' km'+gasStr+' · '+dayLabel+' '+when.toLocaleTimeString("en-PH",{hour:"2-digit",minute:"2-digit"})+'</small></span><small>Reuse</small></button>'}).join("");
+}
 function applyTheme(){var r=document.documentElement;if(s.theme)r.setAttribute("data-theme",s.theme);else r.removeAttribute("data-theme")}
 
 load();applyTheme();
